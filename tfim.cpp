@@ -32,12 +32,10 @@ unsigned long long zf = 16210525687446977967ULL; // index of canonical basis vec
 
 int q; divdiff* d;
 
-ExExFloat ddsum; unsigned long long npaths; int currEnergy; int currs=1;
+double ddsum,ddkahanc,coefficient=1; unsigned long long npaths; int currEnergy; int currs=1;
 
 int k[n]; int differentbits[n]; int Ndifferentbits=0;
 int currk[n]; int currseq[qmax+n+1]; int currq=0;
-
-ExExFloat coefficient, Tolerance;
 
 int lattice[n];
 
@@ -65,7 +63,12 @@ int IsingEnergy(){ // calculate energy of a given configuration of spins
 }
 
 void output(){ // process the path found
-	ddsum+=d->divdiffs[q]; npaths++;
+	double y = d->divdiffs[q].get_double() - ddkahanc; // employing Kahan summation to accurately perform
+	volatile double t = ddsum + y;                     // the operation ddsum += d->divdiffs[q].get_double();
+	volatile double z = t - ddsum; // volatile keywords are used to inhibit compiler optimizations that are dangerous for Kahan summation
+	ddkahanc = z - y;
+	ddsum = t;
+	npaths++;
 }
 
 void sequences(){ // for a given k_0,...,k_{n-1} consider all paths such that number of flips of spin #i is k_i.
@@ -109,7 +112,7 @@ void allk(){	// generate all arrays k_0,k_1,...,k_{n-1} such that k_0+...+k_{n-1
 int main(int argc, char** argv){
 	if(argc>=2) zi = strtoull(argv[1],NULL,10);
 	if(argc>=3) zf = strtoull(argv[2],NULL,10);
-	int i; ExExFloat sum,totalsum; divdiff_init(); Tolerance = tolerance;
+	int i; double sum,totalsum; divdiff_init();
         unsigned long long k=1; for(i=0;i<n;i++) { lattice[i]= (zi&k)==0?-1:1; k*=2;}
         for(i=0;i<n;i++) if(((zi>>i)&1) == ((zf>>i)&1)) differentbits[i]=0; else { differentbits[i]=1; Ndifferentbits++;}
         printf("Number of different bits = %d\n",Ndifferentbits);
@@ -117,12 +120,12 @@ int main(int argc, char** argv){
         for(q=Ndifferentbits;q<=Ndifferentbits+qmax;q+=2){
 	        if(q>0) { coefficient*=(beta*beta*Gamma*Gamma); coefficient/=(q*(q-1)); currs=(int)ceil(4.0*q/3.5);}
 		dd.CurrentLength=0; dd.AddElement(-beta*currEnergy,currs);
-		npaths=0; ddsum=0; allk();
+		npaths=0; ddsum=0.0; ddkahanc=0.0; allk();
 		sum = coefficient*ddsum;
 		if(q==Ndifferentbits) totalsum=sum; else totalsum+=sum;
-		printf("q =%3d, number of paths = %15llu, sum = ",q,npaths); sum.print(); printf("\n"); fflush(stdout);
-		if(Tolerance>=sum.abs()) break;
+		printf("q =%3d, number of paths = %15llu, sum = %.17g\n",q,npaths,sum); fflush(stdout);
+		if(tolerance>=fabs(sum)) break;
 	}
-	printf("total sum = "); totalsum.print(); printf("\n");
+	printf("total sum = %.17g\n",totalsum);
 	divdiff_clear_up();
 }

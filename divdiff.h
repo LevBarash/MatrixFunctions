@@ -1,3 +1,14 @@
+//
+// This code is part of the program, which is introduced in the paper
+// Lev Barash, Stefan Guttel, Itay Hen, Calculating Elements of Matrix Functions using Divided Differences
+//
+// The program is licensed under a Creative Commons Attribution 4.0 International License:
+// http://creativecommons.org/licenses/by/4.0/
+//
+// ExExFloat datatype and calculation of divided differences are described in the paper:
+// L. Gupta, L. Barash, I. Hen, Calculating the divided differences of the exponential function by addition and removal of inputs, Computer Physics Communications 254, 107385 (2020)
+//
+
 #include<random>
 #include<stdio.h>
 #include<string.h>
@@ -100,7 +111,7 @@ public:
 			else return 0;
 		}
 	}
-	double get_double(){ return mantissa * pow(2.,exponent); }
+	double get_double(){ return ldexp(mantissa,exponent);}
 	ExExFloat abs(){ExExFloat res; res.mantissa = fabs(mantissa); res.exponent = exponent; return res;}
 };
 

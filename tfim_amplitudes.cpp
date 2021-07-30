@@ -32,12 +32,12 @@ unsigned long long zf = 16489678495598722447ULL; // index of canonical basis vec
 
 int q; divdiffcomplex* d;
 
-std::complex<ExExFloat> ddsum; unsigned long long npaths; int currEnergy; int currs=1;
+std::complex<double> ddsum,ddkahanc; unsigned long long npaths; int currEnergy; int currs=1;
 
 int k[n]; int differentbits[n]; int Ndifferentbits=0;
 int currk[n]; int currseq[qmax+n+1]; int currq=0;
 
-std::complex<ExExFloat> coefficient(1,0); ExExFloat Tolerance;
+std::complex<double> coefficient(1,0);
 
 int lattice[n];
 
@@ -65,7 +65,11 @@ int IsingEnergy(){ // calculate energy of a given configuration of spins
 }
 
 void output(){ // process the path found
-	ddsum+=d->divdiffs[q]; npaths++;
+	std::complex<double> y(d->divdiffs[q].real().get_double(),d->divdiffs[q].imag().get_double()); y -= ddkahanc;
+	std::complex<double> t = ddsum + y; // employing Kahan summation to accurately perform
+	std::complex<double> z = t - ddsum; // the operation ddsum += d->divdiffs[q];
+	ddkahanc = z - y; ddsum = t;
+	npaths++;
 }
 
 void sequences(){ // for a given k_0,...,k_{n-1} consider all paths such that number of flips of spin #i is k_i.
@@ -109,7 +113,7 @@ void allk(){	// generate all arrays k_0,k_1,...,k_{n-1} such that k_0+...+k_{n-1
 
 int main(int argc, char** argv){
 	if(argc>=2) beta=std::complex<double>(0,atof(argv[1])); printf("time = %f\n",beta.imag());
-	int i; std::complex<ExExFloat> sum,totalsum; std::complex<double> z; divdiff_init(); Tolerance = tolerance;
+	int i; std::complex<double> sum,totalsum; std::complex<double> z; divdiff_init();
         unsigned long long k=1; for(i=0;i<n;i++) { lattice[i]= (zi&k)==0?-1:1; k*=2;}
         for(i=0;i<n;i++) if(((zi>>i)&1) == ((zf>>i)&1)) differentbits[i]=0; else { differentbits[i]=1; Ndifferentbits++;}
         printf("Number of different bits = %d\n",Ndifferentbits);
@@ -120,9 +124,9 @@ int main(int argc, char** argv){
 		npaths=0; ddsum-=ddsum; allk();
 		sum = coefficient*ddsum;
 		if(q==Ndifferentbits) totalsum=sum; else totalsum+=sum;
-		printf("q =%3d, number of paths = %15llu, sum = ",q,npaths); sum.real().print(); if(sum.imag()>=0) printf("+"); sum.imag().print(); printf("I\n"); fflush(stdout);
-		if(Tolerance>=std::abs(sum)) break;
+		printf("q =%3d, number of paths = %15llu, sum = %.17g",q,npaths,sum.real()); if(sum.imag()>=0) printf("+"); printf("%.17gI\n",sum.imag()); fflush(stdout);
+		if(tolerance>=std::abs(sum)) break;
 	}
-	printf("total sum = "); totalsum.real().print(); if(totalsum.imag()>=0) printf("+"); totalsum.imag().print(); printf("I\n");
+	printf("total sum = %.17g",totalsum.real()); if(totalsum.imag()>=0) printf("+"); printf("%.17gI\n",totalsum.imag());
 	divdiff_clear_up();
 }
